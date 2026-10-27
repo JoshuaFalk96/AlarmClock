@@ -1,10 +1,11 @@
 import sys
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QWidget, QGridLayout
+import qtawesome as qta
 
 from ClockElement import ClockElement
-from CustomQtClasses import FlowLayout
+from FlowLayout import FlowLayout
 
 
 # setup of main window
@@ -17,8 +18,9 @@ class AlarmClockMainWindow(QMainWindow):
         self._clock_layout = FlowLayout(clock_container)
 
         # button for adding new clock element
-        new_clock_button = QPushButton('new')
-        new_clock_button.clicked.connect(self.add_clock)
+        new_clock_button = QPushButton(qta.icon('fa6s.plus'), '')
+        new_clock_button.setMinimumSize(QSize(30,30))
+        new_clock_button.clicked.connect(self.add_new_clock)
 
         # widget to hold layout for main window
         window_widget_container = QWidget()
@@ -29,13 +31,24 @@ class AlarmClockMainWindow(QMainWindow):
                                           alignment=Qt.AlignmentFlag.AlignBottom |
                                                     Qt.AlignmentFlag.AlignRight)
 
+
+
+        # TODO load clocks from file
+        self._saved_clocks = [ClockElement(),ClockElement()]
+        # add loaded clocks to layout
+        for index in range(len(self._saved_clocks)-1):
+            clock = self._saved_clocks[index]
+            clock.index = index
+            self._clock_layout.addWidget(clock)
+
         # setup window parameters
-        self.setWindowTitle("My App")
+        self.setWindowTitle("Alarm Clock")
         self.setCentralWidget(window_widget_container)
 
     # add new clock element to window
-    def add_clock(self):
-        clock = ClockElement()
+    def add_new_clock(self):
+        index = self._clock_layout.count()
+        clock = ClockElement(index)
         self._clock_layout.addWidget(clock)
 
     # remove a clock from the window
@@ -44,21 +57,14 @@ class AlarmClockMainWindow(QMainWindow):
 
 
 
-# You need one (and only one) QApplication instance per application.
-# Pass in sys.argv to allow command line arguments for your app.
-# If you know you won't use command line arguments QApplication([]) works too.
+
+
 app = QApplication(sys.argv)
-
-# Create a Qt widget, which will be our window.
 window = AlarmClockMainWindow()
-window.show()# IMPORTANT!!!!! Windows are hidden by default.
+window.show()
 
-window.add_clock()
-window.add_clock()
-window.add_clock()
+window.add_new_clock()
+window.add_new_clock()
+window.add_new_clock()
 
-# Start the event loop.
 app.exec()
-
-# Your application won't reach here until you exit and the event
-# loop has stopped.
