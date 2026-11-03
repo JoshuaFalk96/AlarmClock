@@ -5,6 +5,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette, QColor
 from PySide6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QToolButton, QMenu
 
+from ClockSettings import ClockSettings
+
 colors = [
     'red',
     'green',
@@ -19,6 +21,8 @@ class ClockElement(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self._settings = ClockSettings()
+
         # a container for the layout of the edit and delete buttons
         button_container = QWidget()
         button_container_layout = QHBoxLayout(button_container)
@@ -32,7 +36,7 @@ class ClockElement(QWidget):
         edit_button = QToolButton()
         edit_button.setIcon(qta.icon('fa6s.pen'))
         edit_button.setPopupMode(edit_button.ToolButtonPopupMode.InstantPopup)
-        edit_button.setMenu(edit_menu)
+        edit_button.setMenu(self._settings.build_menu(self))
         # button for removing this clock permanently
         delete_button = QToolButton()
         delete_button.setIcon(qta.icon('fa6s.trash'))
