@@ -36,9 +36,7 @@ class AlarmClockMainWindow(QMainWindow):
         # TODO load clocks from file
         self._saved_clocks = [ClockElement(),ClockElement()]
         # add loaded clocks to layout
-        for index in range(len(self._saved_clocks)-1):
-            clock = self._saved_clocks[index]
-            clock.index = index
+        for clock in self._saved_clocks:
             self._clock_layout.addWidget(clock)
 
         # setup window parameters
@@ -47,9 +45,7 @@ class AlarmClockMainWindow(QMainWindow):
 
     # add new clock element to window
     def add_new_clock(self):
-        index = self._clock_layout.count()
-        clock = ClockElement(index)
-        self._clock_layout.addWidget(clock)
+        self._clock_layout.addWidget(ClockElement())
 
     # remove a clock from the window
     def remove_clock(self, index):
