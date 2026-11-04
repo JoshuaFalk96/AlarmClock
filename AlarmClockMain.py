@@ -43,7 +43,7 @@ class AlarmClockMainWindow(QMainWindow):
         self.setCentralWidget(window_widget_container)
 
 
-# run the application with by opening the main window
+# run the application by opening the main window
 app = QApplication(sys.argv)
 window = AlarmClockMainWindow()
 window.show()
