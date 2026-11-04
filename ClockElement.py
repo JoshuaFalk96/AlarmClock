@@ -1,10 +1,12 @@
+import time
 from random import choice
 from time import struct_time, localtime
 
 import qtawesome as qta
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QObject
 from PySide6.QtGui import QPalette, QColor, QAction
-from PySide6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QToolButton, QMenu
+from PySide6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QToolButton, QMenu, QWidgetAction, QTimeEdit, \
+    QVBoxLayout, QPushButton, QDateTimeEdit
 
 colors = [
     'red',
@@ -82,7 +84,18 @@ class ClockElement(QWidget):
             self._edit_menu.addAction('turn off alarm', self._set_alarm_off)
         else:
             self._edit_menu.addAction('turn on alarm', self._set_alarm_on)
-        self._edit_menu.addAction('set alarm time placeholder', self._set_alarm_time)
+        alarm_time_action = QWidgetAction(self._edit_menu)
+        alarm_edit_layout_container = QWidget()
+        alarm_edit_layout = QHBoxLayout(alarm_edit_layout_container)
+        self._alarm_edit_time_input = QDateTimeEdit()
+        self._alarm_edit_time_input.setDisplayFormat("HH:mm")
+        alarm_edit_layout.addWidget(self._alarm_edit_time_input)
+        alarm_edit_button = QPushButton('ok')
+        alarm_edit_button.clicked.connect(lambda: alarm_time_action.trigger())
+        alarm_edit_layout.addWidget(alarm_edit_button)
+        alarm_time_action.setDefaultWidget(alarm_edit_layout_container)
+        alarm_time_action.triggered.connect(self._set_alarm_time)
+        self._edit_menu.addAction(alarm_time_action)
         self._edit_menu.addAction('set timezone placeholder', self._set_timezone)
 
     def _set_digital(self):
@@ -116,7 +129,8 @@ class ClockElement(QWidget):
         print('turning alarm off')
 
     def _set_alarm_time(self):
-        print('setting alarm time')
+        self._alarm_edit_time_input.time()
+        print('setting alarm time ' + time.strftime("%X", self._alarm_time))
 
     def _set_timezone(self):
-        print('setting timezone')
+        print('setting timezone ' + self._timezone)
