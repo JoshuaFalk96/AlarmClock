@@ -1,24 +1,23 @@
 from random import choice
 
 import qtawesome as qta
-from PySide6.QtCore import Qt, QDateTime, QTimeZone
+from PySide6.QtCore import Qt, QDateTime, QTimeZone, QTime, QDate
 from PySide6.QtGui import QPalette, QColor
 from PySide6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QToolButton, QMenu, QWidgetAction, QPushButton, \
-    QDateTimeEdit
+    QDateTimeEdit, QVBoxLayout, QLabel
 
 colors = [
     'red',
     'green',
     'blue',
     'yellow',
-    'white',
     'black'
 ]
 
 
 class ClockElement(QWidget):
     def __init__(self, is_analog: bool = True, is_am_pm: bool = False, is_alarm_set: bool = False,
-                 alarm_time: QDateTime = QDateTime.currentDateTime(),
+                 alarm_time: QTime = QTime.currentTime(),
                  timezone: QTimeZone = QTimeZone.systemTimeZone(), *args, **kwargs):
         super().__init__(*args, **kwargs)
         # settings for this clock from parameter
@@ -27,6 +26,26 @@ class ClockElement(QWidget):
         self._is_alarm_set = is_alarm_set  # default false
         self._alarm_time = alarm_time  # default local time at creation
         self._timezone = timezone  # default local timezone of machine
+
+        # TODO actual clock GUI
+        clock_container = QWidget()
+        clock_container_layout = QVBoxLayout(clock_container)
+        clock_container_layout.setContentsMargins(0, 0, 0, 0)
+        self._time_format_label = QLabel()
+        clock_container_layout.addWidget(self._time_format_label)
+        self._digital_format_label = QLabel()
+        clock_container_layout.addWidget(self._digital_format_label)
+        self._timezone_label = QLabel()
+        clock_container_layout.addWidget(self._timezone_label)
+        self._alarm_time_label = QLabel()
+        clock_container_layout.addWidget(self._alarm_time_label)
+        self._alarm_state_label = QLabel()
+        clock_container_layout.addWidget(self._alarm_state_label)
+        clock_container.setAutoFillBackground(True)
+        clock_container.setMinimumSize(200, 200)
+        palette = clock_container.palette()
+        palette.setColor(QPalette.ColorRole.Window, QColor(QColor(choice(colors))))
+        clock_container.setPalette(palette)
 
         # a container for the layout of the edit and delete buttons
         button_container = QWidget()
@@ -53,15 +72,6 @@ class ClockElement(QWidget):
         button_container_layout.addStretch()
         button_container_layout.addWidget(delete_button)
 
-        # TODO actual clock GUI
-        clock_container = QWidget()
-        clock_container.setContentsMargins(0, 0, 0, 0)
-        clock_container.setAutoFillBackground(True)
-        clock_container.setMinimumSize(200, 200)
-        palette = clock_container.palette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(QColor(choice(colors))))
-        clock_container.setPalette(palette)
-
         # define the layout for this entire widget
         top_layout = QGridLayout(self)
         top_layout.setContentsMargins(0, 0, 0, 0)
@@ -69,9 +79,12 @@ class ClockElement(QWidget):
         top_layout.addWidget(clock_container, 0, 0)
         top_layout.addWidget(button_container, 0, 0, alignment=Qt.AlignmentFlag.AlignTop)
 
+        self._update_ui()
+
     def _rebuild_edit_menu(self):
         # clear the edit menu
         self._edit_menu.clear()
+        self._update_ui()
 
         # add option for choosing analog or digital representation
         self._edit_menu.addSection('display')
@@ -159,8 +172,19 @@ class ClockElement(QWidget):
         print('turning alarm off')
 
     def _set_alarm_time(self):
-        set_time = self._alarm_edit_time_input.time()
+        self._alarm_time = self._alarm_edit_time_input.time()
+        set_time = QDateTime(QDate.currentDate(), self._alarm_time, self._timezone)
+        self._update_ui()
         print('setting alarm time ' + set_time.toString("hh:mm"))
 
     def _set_timezone(self):
+        self._update_ui()
         print('setting timezone ' + self._timezone.displayName(QTimeZone.TimeType.GenericTime))
+
+    def _update_ui(self):
+        self._time_format_label.setText('time format: ' + ('analog' if self._is_analog else 'digital'))
+        self._digital_format_label.setText('digital format: ' + ('am/pm' if self._is_am_pm else '24h'))
+        set_time = QDateTime(QDate.currentDate(), self._alarm_time, self._timezone)
+        self._timezone_label.setText('timezone: ' + self._timezone.displayName(QTimeZone.TimeType.GenericTime))
+        self._alarm_time_label.setText('alarm time: ' + set_time.toString("hh:mm"))
+        self._alarm_state_label.setText('alarm is ' + ('on' if self._is_alarm_set else 'off'))
