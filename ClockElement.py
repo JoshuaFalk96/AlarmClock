@@ -4,7 +4,7 @@ import qtawesome as qta
 from PySide6.QtCore import Qt, QDateTime, QTimeZone, QTime, QDate, QObject
 from PySide6.QtGui import QPalette, QColor
 from PySide6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QToolButton, QMenu, QWidgetAction, QPushButton, \
-    QDateTimeEdit, QVBoxLayout, QLabel
+    QDateTimeEdit, QVBoxLayout, QLabel, QComboBox
 
 colors = [
     'red',
@@ -14,40 +14,70 @@ colors = [
     'black'
 ]
 
-class TimeEditAction(QWidgetAction):
-    def __init__(self, parent:QObject, alarm_time:QTime):
+
+class EditAction(QWidgetAction):
+    # parent class for timezone and alarm time edit menu items
+    def _generate_layout(self, input_widget: QWidget):
+        # create a dummy widget to hold layout
+        edit_layout_container = QWidget()
+        edit_layout = QHBoxLayout(edit_layout_container)
+        edit_layout.setContentsMargins(25, 0, 20, 0)
+
+        # setup button for confirming edit
+        confirm_button = QPushButton('OK')
+        confirm_button.setFixedWidth(30)
+
+        # have the button trigger the action
+        confirm_button.clicked.connect(lambda: self.trigger())
+
+        # add input field and confirm button to layout of custom widget
+        edit_layout.addWidget(input_widget)
+        edit_layout.addWidget(confirm_button)
+
+        # set dummy widget with the layout as default of this action
+        self.setDefaultWidget(edit_layout_container)
+
+
+class TimeEditAction(EditAction):
+    # menu item for editing alarm time
+    def __init__(self, parent: QObject, alarm_time: QTime):
         super().__init__(parent)
-        # define attribute for reading set time
-        self.time = alarm_time
-
-        # create a dummy widget to hold layout of custom alarm time input
-        alarm_edit_layout_container = QWidget()
-        alarm_edit_layout = QHBoxLayout(alarm_edit_layout_container)
-        alarm_edit_layout.setContentsMargins(25, 0, 20, 0)
-
         # setup time input field of setting alarm time
-        self.alarm_edit_time_input = QDateTimeEdit(alarm_time)
-        self.alarm_edit_time_input.setDisplayFormat("HH:mm")
-        self.alarm_edit_time_input.dateTimeChanged.connect(self._input_changed)
+        self._alarm_edit_time_input = QDateTimeEdit(alarm_time)
+        self._alarm_edit_time_input.setDisplayFormat("HH:mm")
 
-        # setup button for confirming alarm time choice
-        alarm_edit_button = QPushButton('OK')
-        alarm_edit_button.setFixedWidth(30)
+        # use function of parent class to add confirm button and add as default widget of action
+        self._generate_layout(self._alarm_edit_time_input)
 
-        # have the button trigger the alarm time action
-        alarm_edit_button.clicked.connect(lambda: self.trigger())
+    def get_time(self) -> QTime:
+        # provide time set in input field
+        return self._alarm_edit_time_input.time()
 
-        # add time field and confirm button to layout of custom widget
-        alarm_edit_layout.addWidget(self.alarm_edit_time_input)
-        alarm_edit_layout.addWidget(alarm_edit_button)
 
-        # set the custom widget as the widget of the action
-        self.setDefaultWidget(alarm_edit_layout_container)
+class TimezoneEditAction(EditAction):
+    # menu item for editing time zone
+    def __init__(self, parent: QObject, /):
+        super().__init__(parent)
+        # setup dropdown field for the different timezones
+        self._timezones_combo_box = QComboBox()
+        # enable typing in field to search for timezone
+        self._timezones_combo_box.setEditable(True)
+        self._timezones_combo_box.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
 
-    def _input_changed(self, datetime):
-        # save new input to attribute of class
-        self.time = datetime.time()
+        # add all timezones the OS supports to the list
+        for timezone_id in QTimeZone.availableTimeZoneIds():
+            # get the timezone object
+            timezone = QTimeZone(timezone_id)
+            # get the localized name and add timezone id to differentiate same name in different region
+            timezone_name = timezone.displayName(QTimeZone.TimeType.GenericTime) + ' (' + str(timezone_id)[2:-1] + ')'
+            # add the timezone object represented by the localized name
+            self._timezones_combo_box.addItem(timezone_name, timezone)
 
+        # use function of parent class to add confirm button and set as default widget of action
+        self._generate_layout(self._timezones_combo_box)
+
+    def get_timezone(self) -> QTimeZone:
+        return self._timezones_combo_box.currentData()
 
 
 class ClockElement(QWidget):
@@ -140,14 +170,15 @@ class ClockElement(QWidget):
 
         # add option for choosing the timezone
         self._edit_menu.addSection('timezone')
-        self._edit_menu.addAction('set timezone placeholder', self._set_timezone)
+        timezone_edit_action = TimezoneEditAction(self._edit_menu)
+        timezone_edit_action.triggered.connect(lambda: self._set_timezone(timezone_edit_action.get_timezone()))
+        self._edit_menu.addAction(timezone_edit_action)
 
         # add options for alarm time
         self._edit_menu.addSection('alarm')
-
         # add custom widget action for choosing alarm time
         time_edit_action = TimeEditAction(self._edit_menu, self._alarm_time)
-        time_edit_action.triggered.connect(lambda x: self._set_alarm_time(time_edit_action.time))
+        time_edit_action.triggered.connect(lambda x: self._set_alarm_time(time_edit_action.get_time()))
         self._edit_menu.addAction(time_edit_action)
 
         # add option for turning on or off alarm function
@@ -188,13 +219,14 @@ class ClockElement(QWidget):
         self._rebuild_edit_menu()
         print('turning alarm off')
 
-    def _set_alarm_time(self, time:QTime):
+    def _set_alarm_time(self, time: QTime):
         self._alarm_time = time
         set_time = QDateTime(QDate.currentDate(), self._alarm_time, self._timezone)
         self._update_ui()
         print('setting alarm time ' + set_time.toString("hh:mm"))
 
-    def _set_timezone(self):
+    def _set_timezone(self, timezone: QTimeZone):
+        self._timezone = timezone
         self._update_ui()
         print('setting timezone ' + self._timezone.displayName(QTimeZone.TimeType.GenericTime))
 
