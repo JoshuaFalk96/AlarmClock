@@ -1,7 +1,7 @@
 from random import choice
 
 import qtawesome as qta
-from PySide6.QtCore import Qt, QDateTime, QTimeZone, QTime, QDate
+from PySide6.QtCore import Qt, QDateTime, QTimeZone, QTime, QDate, QObject
 from PySide6.QtGui import QPalette, QColor
 from PySide6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QToolButton, QMenu, QWidgetAction, QPushButton, \
     QDateTimeEdit, QVBoxLayout, QLabel
@@ -13,6 +13,41 @@ colors = [
     'yellow',
     'black'
 ]
+
+class TimeEditAction(QWidgetAction):
+    def __init__(self, parent:QObject, alarm_time:QTime):
+        super().__init__(parent)
+        # define attribute for reading set time
+        self.time = alarm_time
+
+        # create a dummy widget to hold layout of custom alarm time input
+        alarm_edit_layout_container = QWidget()
+        alarm_edit_layout = QHBoxLayout(alarm_edit_layout_container)
+        alarm_edit_layout.setContentsMargins(25, 0, 20, 0)
+
+        # setup time input field of setting alarm time
+        self.alarm_edit_time_input = QDateTimeEdit(alarm_time)
+        self.alarm_edit_time_input.setDisplayFormat("HH:mm")
+        self.alarm_edit_time_input.dateTimeChanged.connect(self._input_changed)
+
+        # setup button for confirming alarm time choice
+        alarm_edit_button = QPushButton('OK')
+        alarm_edit_button.setFixedWidth(30)
+
+        # have the button trigger the alarm time action
+        alarm_edit_button.clicked.connect(lambda: self.trigger())
+
+        # add time field and confirm button to layout of custom widget
+        alarm_edit_layout.addWidget(self.alarm_edit_time_input)
+        alarm_edit_layout.addWidget(alarm_edit_button)
+
+        # set the custom widget as the widget of the action
+        self.setDefaultWidget(alarm_edit_layout_container)
+
+    def _input_changed(self, datetime):
+        # save new input to attribute of class
+        self.time = datetime.time()
+
 
 
 class ClockElement(QWidget):
@@ -86,7 +121,7 @@ class ClockElement(QWidget):
         self._edit_menu.clear()
         self._update_ui()
 
-        # add option for choosing analog or digital representation
+        # add options for choosing analog or digital representation
         self._edit_menu.addSection('display')
         if self._is_analog:
             # if the clock is analog, display option to turn digital
@@ -107,31 +142,13 @@ class ClockElement(QWidget):
         self._edit_menu.addSection('timezone')
         self._edit_menu.addAction('set timezone placeholder', self._set_timezone)
 
-        # add option for choosing alarm time
+        # add options for alarm time
         self._edit_menu.addSection('alarm')
-        # create action to hold custom widget
-        alarm_time_action = QWidgetAction(self._edit_menu)
-        # create a dummy widget to hold layout of custom alarm time input
-        alarm_edit_layout_container = QWidget()
-        alarm_edit_layout = QHBoxLayout(alarm_edit_layout_container)
-        alarm_edit_layout.setContentsMargins(25, 0, 20, 0)
-        # setup time input field of setting alarm time
-        # time input needs to be accessed from different function -> saved as field instead of local
-        self._alarm_edit_time_input = QDateTimeEdit(self._alarm_time)
-        self._alarm_edit_time_input.setDisplayFormat("HH:mm")
-        # setup button for confirming alarm time choice
-        alarm_edit_button = QPushButton('OK')
-        alarm_edit_button.setFixedWidth(30)
-        # have the button trigger the alarm time action
-        alarm_edit_button.clicked.connect(lambda: alarm_time_action.trigger())
-        # add time field and confirm button to layout of custom widget
-        alarm_edit_layout.addWidget(self._alarm_edit_time_input)
-        alarm_edit_layout.addWidget(alarm_edit_button)
-        # set the custom widget as the widget of the action
-        alarm_time_action.setDefaultWidget(alarm_edit_layout_container)
-        alarm_time_action.triggered.connect(self._set_alarm_time)
-        # add the custom alarm time chooser to the menu
-        self._edit_menu.addAction(alarm_time_action)
+
+        # add custom widget action for choosing alarm time
+        time_edit_action = TimeEditAction(self._edit_menu, self._alarm_time)
+        time_edit_action.triggered.connect(lambda x: self._set_alarm_time(time_edit_action.time))
+        self._edit_menu.addAction(time_edit_action)
 
         # add option for turning on or off alarm function
         if self._is_alarm_set:
@@ -171,8 +188,8 @@ class ClockElement(QWidget):
         self._rebuild_edit_menu()
         print('turning alarm off')
 
-    def _set_alarm_time(self):
-        self._alarm_time = self._alarm_edit_time_input.time()
+    def _set_alarm_time(self, time:QTime):
+        self._alarm_time = time
         set_time = QDateTime(QDate.currentDate(), self._alarm_time, self._timezone)
         self._update_ui()
         print('setting alarm time ' + set_time.toString("hh:mm"))
