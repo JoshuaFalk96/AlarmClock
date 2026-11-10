@@ -4,7 +4,7 @@ import qtawesome as qta
 from PySide6.QtCore import Qt, QDateTime, QTimeZone, QTime, QDate, QObject
 from PySide6.QtGui import QPalette, QColor
 from PySide6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QToolButton, QMenu, QWidgetAction, QPushButton, \
-    QDateTimeEdit, QVBoxLayout, QLabel, QComboBox
+    QDateTimeEdit, QVBoxLayout, QLabel, QComboBox, QStackedWidget
 
 colors = [
     'red',
@@ -63,6 +63,7 @@ class TimezoneEditAction(EditAction):
         # enable typing in field to search for timezone
         self._timezones_combo_box.setEditable(True)
         self._timezones_combo_box.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self._timezones_combo_box.activated.connect(lambda: self.trigger())
 
         # add all timezones the OS supports to the list
         for timezone_id in QTimeZone.availableTimeZoneIds():
@@ -96,16 +97,22 @@ class ClockElement(QWidget):
         clock_container = QWidget()
         clock_container_layout = QVBoxLayout(clock_container)
         clock_container_layout.setContentsMargins(0, 0, 0, 0)
+
+        clock_representation_widget = QStackedWidget()
+
         self._time_format_label = QLabel()
         clock_container_layout.addWidget(self._time_format_label)
         self._digital_format_label = QLabel()
         clock_container_layout.addWidget(self._digital_format_label)
-        self._timezone_label = QLabel()
-        clock_container_layout.addWidget(self._timezone_label)
         self._alarm_time_label = QLabel()
         clock_container_layout.addWidget(self._alarm_time_label)
         self._alarm_state_label = QLabel()
         clock_container_layout.addWidget(self._alarm_state_label)
+
+        self._timezone_label = QLabel()
+        self._timezone_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        clock_container_layout.addWidget(self._timezone_label)
+
         clock_container.setAutoFillBackground(True)
         clock_container.setMinimumSize(200, 200)
         palette = clock_container.palette()
@@ -191,49 +198,53 @@ class ClockElement(QWidget):
 
     def _set_digital(self):
         self._is_analog = False
+        self._time_format_label.setText('time format: digital')
         self._rebuild_edit_menu()
         print('setting digital')
 
     def _set_analog(self):
         self._is_analog = True
+        self._time_format_label.setText('time format: analog')
         self._rebuild_edit_menu()
         print('setting analog')
 
     def _set_24h(self):
         self._is_am_pm = False
+        self._digital_format_label.setText('digital format: 24h')
         self._rebuild_edit_menu()
         print('setting 24h')
 
     def _set_am_pm(self):
         self._is_am_pm = True
+        self._digital_format_label.setText('digital format: am/pm')
         self._rebuild_edit_menu()
         print('setting am/pm')
 
     def _set_alarm_on(self):
         self._is_alarm_set = True
+        self._alarm_state_label.setText('alarm is on')
         self._rebuild_edit_menu()
         print('turning alarm on')
 
     def _set_alarm_off(self):
         self._is_alarm_set = False
+        self._alarm_state_label.setText('alarm is off')
         self._rebuild_edit_menu()
         print('turning alarm off')
 
     def _set_alarm_time(self, time: QTime):
         self._alarm_time = time
         set_time = QDateTime(QDate.currentDate(), self._alarm_time, self._timezone)
-        self._update_ui()
+        set_time = QDateTime(QDate.currentDate(), self._alarm_time, self._timezone)
+        self._alarm_time_label.setText('alarm time: ' + set_time.toString("hh:mm"))
         print('setting alarm time ' + set_time.toString("hh:mm"))
 
     def _set_timezone(self, timezone: QTimeZone):
         self._timezone = timezone
-        self._update_ui()
-        print('setting timezone ' + self._timezone.displayName(QTimeZone.TimeType.GenericTime))
+        self._timezone_label.setText(
+            '<b>{0} ({1}</b>)'.format(self._timezone.displayName(QTimeZone.TimeType.GenericTime,
+                                                                 QTimeZone.NameType.ShortName),
+                                      self._timezone.displayName(QTimeZone.TimeType.GenericTime,
+                                                                 QTimeZone.NameType.OffsetName)))
 
-    def _update_ui(self):
-        self._time_format_label.setText('time format: ' + ('analog' if self._is_analog else 'digital'))
-        self._digital_format_label.setText('digital format: ' + ('am/pm' if self._is_am_pm else '24h'))
-        set_time = QDateTime(QDate.currentDate(), self._alarm_time, self._timezone)
-        self._timezone_label.setText('timezone: ' + self._timezone.displayName(QTimeZone.TimeType.GenericTime))
-        self._alarm_time_label.setText('alarm time: ' + set_time.toString("hh:mm"))
-        self._alarm_state_label.setText('alarm is ' + ('on' if self._is_alarm_set else 'off'))
+        print('setting timezone ' + self._timezone.displayName(QTimeZone.TimeType.GenericTime))
